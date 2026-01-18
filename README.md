@@ -54,7 +54,7 @@
 ### Prerequisites
 - Modern web browser (Chrome, Firefox, Edge)
 - Webcam access
-- (Optional) [Ollama](https://ollama.ai/) for AI analysis
+- Install [Ollama](https://ollama.ai/) for AI analysis
 
 ### Installation
 
