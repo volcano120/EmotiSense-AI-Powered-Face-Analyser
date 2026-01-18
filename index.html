@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmotiSense — Real-time Emotion Detection</title>
+    <meta name="description" content="Advanced facial expression and eye tracking analyzer with AI-powered mood insights">
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7c3aed;
+            --primary-light: #a78bfa;
+            --accent: #f472b6;
+            --accent-light: #f9a8d4;
+            --bg-dark: #0f0f1a;
+            --bg-card: rgba(20, 20, 35, 0.85);
+            --bg-glass: rgba(124, 58, 237, 0.08);
+            --border: rgba(124, 58, 237, 0.25);
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            background-image: 
+                radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 100%, rgba(244, 114, 182, 0.1) 0%, transparent 50%);
+            min-height: 100vh;
+            color: var(--text);
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.3);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 400;
+        }
+
+        /* Main Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 20px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(124, 58, 237, 0.4);
+            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: linear-gradient(180deg, var(--primary), var(--accent));
+            border-radius: 2px;
+        }
+
+        /* Video Section */
+        .video-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16/10;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 10;
+        }
+
+        .badge {
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .badge-dot.live {
+            background: var(--danger);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        .badge-dot.ready {
+            background: var(--success);
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: none;
+            animation: slide-up 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        @keyframes slide-up {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .alert-banner.show {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-banner.surprise {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(139, 92, 246, 0.9));
+        }
+
+        .alert-banner.fear {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.9), rgba(234, 88, 12, 0.9));
+        }
+
+        .alert-banner.distress {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.9));
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(71, 85, 105, 0.4);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 15, 26, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            z-index: 20;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(124, 58, 237, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background: rgba(124, 58, 237, 0.2);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Emotion Display */
+        .emotion-hero {
+            background: var(--bg-glass);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-left: 4px solid var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .emotion-hero.happy { border-left-color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
+        .emotion-hero.sad { border-left-color: #60a5fa; background: rgba(96, 165, 250, 0.08); }
+        .emotion-hero.angry { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+        .emotion-hero.surprised { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.08); }
+        .emotion-hero.fearful { border-left-color: #f97316; background: rgba(249, 115, 22, 0.08); }
+        .emotion-hero.disgusted { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.08); }
+        .emotion-hero.neutral { border-left-color: #94a3b8; background: rgba(148, 163, 184, 0.08); }
+
+        .emotion-emoji {
+            font-size: 3rem;
+            line-height: 1;
+        }
+
+        .emotion-info h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: capitalize;
+            margin-bottom: 4px;
+        }
+
+        .emotion-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .emotion-confidence {
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .confidence-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .confidence-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Emotion Bars */
+        .emotion-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .emotion-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .emotion-bar-icon {
+            width: 28px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .emotion-bar-name {
+            width: 75px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: capitalize;
+        }
+
+        .emotion-bar-track {
+            flex: 1;
+            height: 8px;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .emotion-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .emotion-bar-fill.happy { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+        .emotion-bar-fill.sad { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+        .emotion-bar-fill.angry { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .emotion-bar-fill.surprised { background: linear-gradient(90deg, #a855f7, #8b5cf6); }
+        .emotion-bar-fill.fearful { background: linear-gradient(90deg, #f97316, #ea580c); }
+        .emotion-bar-fill.disgusted { background: linear-gradient(90deg, #22c55e, #16a34a); }
+        .emotion-bar-fill.neutral { background: linear-gradient(90deg, #94a3b8, #64748b); }
+
+        .emotion-bar-value {
+            width: 40px;
+            text-align: right;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Eye Tracking Panel */
+        .eye-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .eye-metric {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .eye-metric-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--info);
+        }
+
+        .eye-metric-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .eye-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            padding: 14px;
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 10px;
+        }
+
+        .eye-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+
+        .eye-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .eye-indicator.open {
+            background: var(--success);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+        }
+
+        .eye-indicator.closed {
+            background: var(--danger);
+        }
+
+        /* AI Panel */
+        .ai-panel {
+            border: 1px solid rgba(124, 58, 237, 0.4);
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(244, 114, 182, 0.05));
+        }
+
+        .ai-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ai-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .ai-summary {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            min-height: 100px;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+        }
+
+        /* Session Stats */
+        .session-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: rgba(30, 41, 59, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-light);
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        /* Alerts Log */
+        .alerts-log {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(30, 41, 59, 0.4);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            border-left: 3px solid var(--text-muted);
+            gap: 10px;
+        }
+
+        .alert-item.surprise { border-left-color: #a855f7; }
+        .alert-item.fear { border-left-color: #f97316; }
+        .alert-item.happy { border-left-color: #fbbf24; }
+
+        .alert-time {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        /* Settings Panel */
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+        }
+
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+
+        .settings-label {
+            font-size: 0.85rem;
+        }
+
+        .toggle {
+            width: 44px;
+            height: 24px;
+            background: rgba(71, 85, 105, 0.4);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle.active {
+            background: var(--primary);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: all 0.2s;
+        }
+
+        .toggle.active::after {
+            left: 23px;
+        }
+
+        /* Snapshot Button */
+        .btn-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: none;
+        }
+
+        /* Disclaimer */
+        .disclaimer {
+            margin-top: 16px;
+            padding: 14px 16px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            color: #fbbf24;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .right-panel {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+            .right-panel {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">👁️</div>
+                <h1>EmotiSense</h1>
+            </div>
+            <p class="tagline">Real-time Expression & Eye Tracking with AI-Powered Insights</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left: Video Feed -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Live Analysis</div>
+                        <div class="badge" id="fpsDisplay">
+                            <span>0 FPS</span>
+                        </div>
+                    </div>
+
+                    <div class="video-wrapper" id="videoContainer">
+                        <video id="videoElement" autoplay muted playsinline></video>
+                        <canvas id="overlayCanvas"></canvas>
+
+                        <div class="video-overlay">
+                            <div class="badge">
+                                <span class="badge-dot" id="statusDot"></span>
+                                <span id="statusText">Ready</span>
+                            </div>
+                        </div>
+
+                        <div class="alert-banner" id="alertBanner">
+                            <span>⚡</span>
+                            <span id="alertText">Sudden emotion change detected!</span>
+                        </div>
+
+                        <div class="loading-overlay" id="loadingOverlay">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text" id="loadingText">Initializing EmotiSense...</div>
+                            <div class="loading-progress">
+                                <div class="loading-progress-bar" id="progressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <button class="btn btn-primary" id="startBtn" disabled>
+                            <span>▶</span> Start Analysis
+                        </button>
+                        <button class="btn btn-danger" id="stopBtn" disabled>
+                            <span>⏹</span> Stop
+                        </button>
+                        <button class="btn btn-secondary btn-icon" id="snapshotBtn" disabled title="Take Snapshot">
+                            📸
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Session Stats -->
+                <div class="card" style="margin-top: 16px;">
+                    <div class="card-header">
+                        <div class="card-title">Session Statistics</div>
+                    </div>
+                    <div class="session-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="sessionDuration">0:00</div>
+                            <div class="stat-label">Duration</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="emotionChanges">0</div>
+                            <div class="stat-label">Changes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="dominantEmotion">—</div>
+                            <div class="stat-label">Dominant</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="disclaimer">
+                    <span>⚠️</span>
+                    <div>
+                        <strong>Demo Only</strong> — Expression detection is approximate and varies by individual. 
+                        Not for clinical or diagnostic purposes. All processing happens locally.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Analysis Panels -->
+            <div class="right-panel">
+                <!-- Current Emotion -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Current Expression</div>
+                    </div>
+                    
+                    <div class="emotion-hero neutral" id="emotionHero">
+                        <div class="emotion-emoji" id="emotionEmoji">😐</div>
+                        <div class="emotion-info">
+                            <h3 id="emotionLabel">Neutral</h3>
+                            <p id="emotionDesc">Waiting for detection...</p>
+                        </div>
+                        <div class="emotion-confidence">
+                            <div class="confidence-value" id="confidenceValue">0%</div>
+                            <div class="confidence-label">Confidence</div>
+                        </div>
+                    </div>
+
+                    <div class="emotion-bars" id="emotionBars" style="margin-top: 16px;">
+                        <!-- Bars generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Eye Tracking -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Eye Tracking</div>
+                    </div>
+                    
+                    <div class="eye-grid">
+                        <div class="eye-metric">
+                            <div class="eye-metric-value" id="blinkRate">0</div>
+                            <div class="eye-metric-label">Blinks / min</div>
+                        </div>
+                        <div class="eye-metric">
+                            <div class="eye-metric-value" id="gazeStability">—</div>
+                            <div class="eye-metric-label">Gaze Stability</div>
+                        </div>
+                    </div>
+                    
+                    <div class="eye-status">
+                        <div class="eye-item">
+                            <span class="eye-indicator" id="leftEyeIndicator"></span>
+                            <span>Left Eye</span>
+                        </div>
+                        <div class="eye-item">
+                            <span class="eye-indicator" id="rightEyeIndicator"></span>
+                            <span>Right Eye</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis -->
+                <div class="card ai-panel">
+                    <div class="card-header">
+                        <div class="card-title">AI Mood Analysis</div>
+                        <div class="ai-status">
+                            <span class="badge-dot" id="aiDot"></span>
+                            <span id="aiStatus">Connecting...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-summary" id="aiSummary">
+                        Start analysis to receive AI-powered mood insights based on your expressions and eye movements...
+                    </div>
+                </div>
+
+                <!-- Alerts Log -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Emotion Alerts</div>
+                    </div>
+                    
+                    <div class="alerts-log" id="alertsLog">
+                        <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 20px;">
+                            No sudden changes detected yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // EMOTISENSE - Advanced Emotion Detection
+        // ============================================
+
+        const OLLAMA_URL = 'http://localhost:11434';
+        const MODEL = 'qwen2.5-coder:7b-instruct-q4_K_M';
+        const AI_INTERVAL = 3000;
+
+        const EMOTIONS = {
+            happy: { emoji: '😊', color: '#fbbf24', desc: 'Showing positive emotions' },
+            sad: { emoji: '😢', color: '#60a5fa', desc: 'Expressing sadness or melancholy' },
+            angry: { emoji: '😠', color: '#ef4444', desc: 'Displaying frustration or anger' },
+            surprised: { emoji: '😲', color: '#a855f7', desc: 'Showing surprise or astonishment' },
+            fearful: { emoji: '😨', color: '#f97316', desc: 'Expressing fear or anxiety' },
+            disgusted: { emoji: '🤢', color: '#22c55e', desc: 'Showing disgust or distaste' },
+            neutral: { emoji: '😐', color: '#94a3b8', desc: 'Calm, neutral expression' }
+        };
+
+        let video, canvas, ctx;
+        let isAnalyzing = false;
+        let isAiConnected = false;
+        let lastAiCall = 0;
+        let frameCount = 0;
+        let lastFpsTime = Date.now();
+        let sessionStartTime = null;
+        let emotionChangeCount = 0;
+        let emotionCounts = {};
+
+        let emotionHistory = [];
+        let lastDominant = 'neutral';
+        let lastDominantTime = Date.now();
+
+        let blinkCount = 0;
+        let blinkStartTime = Date.now();
+        let lastEyeState = { left: true, right: true };
+        let gazePoints = [];
+
+        let alerts = [];
+
+        // Initialize
+        async function init() {
+            video = document.getElementById('videoElement');
+            canvas = document.getElementById('overlayCanvas');
+            ctx = canvas.getContext('2d');
+
+            generateEmotionBars();
+
+            try {
+                updateLoading('Loading face detector...', 20);
+                await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/');
+
+                updateLoading('Loading expression model...', 50);
+                await faceapi.nets.faceExpressionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/');
+
+                updateLoading('Loading landmark model...', 80);
+                await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/');
+
+                updateLoading('Ready!', 100);
+                
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('statusText').textContent = 'Ready';
+                    document.getElementById('statusDot').classList.add('ready');
+                }, 500);
+
+            } catch (err) {
+                console.error('Model load error:', err);
+                updateLoading('Failed to load models', 0);
+            }
+
+            testOllama();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            document.getElementById('startBtn').addEventListener('click', startCamera);
+            document.getElementById('stopBtn').addEventListener('click', stopCamera);
+            document.getElementById('snapshotBtn').addEventListener('click', takeSnapshot);
+        }
+
+        function updateLoading(text, progress) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function generateEmotionBars() {
+            const container = document.getElementById('emotionBars');
+            container.innerHTML = '';
+            
+            Object.keys(EMOTIONS).forEach(emotion => {
+                container.innerHTML += `
+                    <div class="emotion-bar-row">
+                        <div class="emotion-bar-icon">${EMOTIONS[emotion].emoji}</div>
+                        <div class="emotion-bar-name">${emotion}</div>
+                        <div class="emotion-bar-track">
+                            <div class="emotion-bar-fill ${emotion}" id="bar-${emotion}" style="width: 0%"></div>
+                        </div>
+                        <div class="emotion-bar-value" id="value-${emotion}">0%</div>
+                    </div>
+                `;
+            });
+        }
+
+        async function testOllama() {
+            try {
+                const res = await fetch(`${OLLAMA_URL}/api/tags`);
+                if (res.ok) {
+                    isAiConnected = true;
+                    document.getElementById('aiDot').classList.add('ready');
+                    document.getElementById('aiStatus').textContent = 'Connected';
+                }
+            } catch (e) {
+                document.getElementById('aiStatus').textContent = 'Offline';
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720, facingMode: 'user' }
+                });
+
+                video.srcObject = stream;
+                await video.play();
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('snapshotBtn').disabled = false;
+                document.getElementById('statusText').textContent = 'Analyzing...';
+                document.getElementById('statusDot').classList.remove('ready');
+                document.getElementById('statusDot').classList.add('live');
+
+                isAnalyzing = true;
+                sessionStartTime = Date.now();
+                blinkStartTime = Date.now();
+                blinkCount = 0;
+                emotionChangeCount = 0;
+                emotionCounts = {};
+
+                detectLoop();
+                updateSessionTime();
+
+            } catch (err) {
+                console.error('Camera error:', err);
+                document.getElementById('statusText').textContent = 'Camera denied';
+            }
+        }
+
+        function stopCamera() {
+            isAnalyzing = false;
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(t => t.stop());
+                video.srcObject = null;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('snapshotBtn').disabled = true;
+            document.getElementById('statusText').textContent = 'Stopped';
+            document.getElementById('statusDot').classList.remove('live');
+        }
+
+        function takeSnapshot() {
+            const snapshotCanvas = document.createElement('canvas');
+            snapshotCanvas.width = video.videoWidth;
+            snapshotCanvas.height = video.videoHeight;
+            const snapshotCtx = snapshotCanvas.getContext('2d');
+            snapshotCtx.drawImage(video, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = `emotisense-snapshot-${Date.now()}.png`;
+            link.href = snapshotCanvas.toDataURL();
+            link.click();
+        }
+
+        function updateSessionTime() {
+            if (!isAnalyzing) return;
+            
+            const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            document.getElementById('sessionDuration').textContent = 
+                `${mins}:${secs.toString().padStart(2, '0')}`;
+            
+            setTimeout(updateSessionTime, 1000);
+        }
+
+        async function detectLoop() {
+            if (!isAnalyzing) return;
+
+            frameCount++;
+            const now = Date.now();
+
+            if (now - lastFpsTime > 1000) {
+                document.getElementById('fpsDisplay').querySelector('span').textContent = `${frameCount} FPS`;
+                frameCount = 0;
+                lastFpsTime = now;
+            }
+
+            try {
+                const detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }))
+                    .withFaceLandmarks()
+                    .withFaceExpressions();
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (detections.length > 0) {
+                    const detection = detections.reduce((a, b) =>
+                        a.detection.box.area > b.detection.box.area ? a : b
+                    );
+
+                    document.getElementById('statusText').textContent = 'Face detected';
+
+                    drawFaceOverlay(detection);
+                    processExpressions(detection.expressions);
+                    processEyeTracking(detection.landmarks);
+
+                    if (isAiConnected && now - lastAiCall > AI_INTERVAL) {
+                        lastAiCall = now;
+                        analyzeWithAI(detection.expressions);
+                    }
+
+                } else {
+                    document.getElementById('statusText').textContent = 'No face';
+                }
+
+            } catch (err) {
+                console.error('Detection error:', err);
+            }
+
+            requestAnimationFrame(detectLoop);
+        }
+
+        function drawFaceOverlay(detection) {
+            const box = detection.detection.box;
+            const landmarks = detection.landmarks;
+
+            // Face box with gradient stroke
+            ctx.strokeStyle = '#7c3aed';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+            // Corner accents
+            const cornerSize = 20;
+            ctx.strokeStyle = '#f472b6';
+            ctx.lineWidth = 4;
+            
+            // Top-left
+            ctx.beginPath();
+            ctx.moveTo(box.x, box.y + cornerSize);
+            ctx.lineTo(box.x, box.y);
+            ctx.lineTo(box.x + cornerSize, box.y);
+            ctx.stroke();
+            
+            // Top-right
+            ctx.beginPath();
+            ctx.moveTo(box.x + box.width - cornerSize, box.y);
+            ctx.lineTo(box.x + box.width, box.y);
+            ctx.lineTo(box.x + box.width, box.y + cornerSize);
+            ctx.stroke();
+            
+            // Bottom-left
+            ctx.beginPath();
+            ctx.moveTo(box.x, box.y + box.height - cornerSize);
+            ctx.lineTo(box.x, box.y + box.height);
+            ctx.lineTo(box.x + cornerSize, box.y + box.height);
+            ctx.stroke();
+            
+            // Bottom-right
+            ctx.beginPath();
+            ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
+            ctx.lineTo(box.x + box.width, box.y + box.height);
+            ctx.lineTo(box.x + box.width, box.y + box.height - cornerSize);
+            ctx.stroke();
+
+            // Landmarks
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.7)';
+            const points = landmarks.positions;
+            for (let i = 0; i < points.length; i++) {
+                ctx.beginPath();
+                ctx.arc(points[i].x, points[i].y, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        function processExpressions(expressions) {
+            let maxEmotion = 'neutral';
+            let maxValue = 0;
+
+            Object.keys(EMOTIONS).forEach(emotion => {
+                const value = expressions[emotion] || 0;
+                const percent = Math.round(value * 100);
+                
+                document.getElementById(`bar-${emotion}`).style.width = percent + '%';
+                document.getElementById(`value-${emotion}`).textContent = percent + '%';
+
+                if (value > maxValue) {
+                    maxValue = value;
+                    maxEmotion = emotion;
+                }
+
+                emotionCounts[emotion] = (emotionCounts[emotion] || 0) + value;
+            });
+
+            // Update hero display
+            const hero = document.getElementById('emotionHero');
+            hero.className = 'emotion-hero ' + maxEmotion;
+            document.getElementById('emotionEmoji').textContent = EMOTIONS[maxEmotion].emoji;
+            document.getElementById('emotionLabel').textContent = maxEmotion;
+            document.getElementById('emotionDesc').textContent = EMOTIONS[maxEmotion].desc;
+            document.getElementById('confidenceValue').textContent = Math.round(maxValue * 100) + '%';
+
+            // Track emotion changes
+            if (maxEmotion !== lastDominant) {
+                const now = Date.now();
+                const timeSinceLast = now - lastDominantTime;
+
+                if (timeSinceLast < 500 && (maxEmotion === 'surprised' || maxEmotion === 'fearful')) {
+                    addAlert(maxEmotion, `Sudden ${maxEmotion} detected`);
+                    showAlertBanner(maxEmotion);
+                }
+
+                emotionChangeCount++;
+                document.getElementById('emotionChanges').textContent = emotionChangeCount;
+                lastDominant = maxEmotion;
+                lastDominantTime = now;
+            }
+
+            // Update dominant emotion
+            let dominant = 'neutral';
+            let maxCount = 0;
+            Object.keys(emotionCounts).forEach(e => {
+                if (emotionCounts[e] > maxCount) {
+                    maxCount = emotionCounts[e];
+                    dominant = e;
+                }
+            });
+            document.getElementById('dominantEmotion').textContent = 
+                dominant.charAt(0).toUpperCase() + dominant.slice(1, 3);
+        }
+
+        function processEyeTracking(landmarks) {
+            const leftEye = landmarks.getLeftEye();
+            const rightEye = landmarks.getRightEye();
+
+            const leftEAR = calculateEAR(leftEye);
+            const rightEAR = calculateEAR(rightEye);
+
+            const leftOpen = leftEAR > 0.2;
+            const rightOpen = rightEAR > 0.2;
+
+            // Update indicators
+            const leftIndicator = document.getElementById('leftEyeIndicator');
+            const rightIndicator = document.getElementById('rightEyeIndicator');
+            
+            leftIndicator.className = 'eye-indicator ' + (leftOpen ? 'open' : 'closed');
+            rightIndicator.className = 'eye-indicator ' + (rightOpen ? 'open' : 'closed');
+
+            // Blink detection
+            if (!leftOpen && !rightOpen && lastEyeState.left && lastEyeState.right) {
+                blinkCount++;
+            }
+
+            lastEyeState = { left: leftOpen, right: rightOpen };
+
+            // Calculate blink rate
+            const elapsed = (Date.now() - blinkStartTime) / 1000 / 60;
+            const blinkRate = elapsed > 0 ? Math.round(blinkCount / elapsed) : 0;
+            document.getElementById('blinkRate').textContent = blinkRate;
+
+            // Gaze stability
+            const eyeCenter = {
+                x: (leftEye[0].x + rightEye[3].x) / 2,
+                y: (leftEye[0].y + rightEye[3].y) / 2
+            };
+            
+            gazePoints.push(eyeCenter);
+            if (gazePoints.length > 30) gazePoints.shift();
+
+            if (gazePoints.length >= 10) {
+                const variance = calculateGazeVariance();
+                let stability = 'High';
+                if (variance > 5) stability = 'Med';
+                if (variance > 10) stability = 'Low';
+                document.getElementById('gazeStability').textContent = stability;
+            }
+        }
+
+        function calculateEAR(eye) {
+            const vertical1 = distance(eye[1], eye[5]);
+            const vertical2 = distance(eye[2], eye[4]);
+            const horizontal = distance(eye[0], eye[3]);
+            return (vertical1 + vertical2) / (2 * horizontal);
+        }
+
+        function distance(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        function calculateGazeVariance() {
+            const avgX = gazePoints.reduce((a, b) => a + b.x, 0) / gazePoints.length;
+            const avgY = gazePoints.reduce((a, b) => a + b.y, 0) / gazePoints.length;
+            
+            let variance = 0;
+            gazePoints.forEach(p => {
+                variance += Math.pow(p.x - avgX, 2) + Math.pow(p.y - avgY, 2);
+            });
+            
+            return Math.sqrt(variance / gazePoints.length);
+        }
+
+        function showAlertBanner(type) {
+            const banner = document.getElementById('alertBanner');
+            banner.className = 'alert-banner show ' + type;
+            document.getElementById('alertText').textContent = 
+                type === 'surprised' ? 'Sudden surprise detected!' :
+                type === 'fearful' ? 'Fear/anxiety detected!' : 'Emotional change detected!';
+            
+            setTimeout(() => {
+                banner.className = 'alert-banner';
+            }, 3000);
+        }
+
+        function addAlert(type, message) {
+            const time = new Date().toLocaleTimeString();
+            alerts.unshift({ type, message, time });
+            if (alerts.length > 10) alerts.pop();
+            
+            const container = document.getElementById('alertsLog');
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-item ${a.type}">
+                    <span>${EMOTIONS[a.type]?.emoji || '⚡'}</span>
+                    <span>${a.message}</span>
+                    <span class="alert-time">${a.time}</span>
+                </div>
+            `).join('');
+        }
+
+        async function analyzeWithAI(expressions) {
+            if (!isAiConnected) return;
+
+            document.getElementById('aiDot').classList.remove('ready');
+            document.getElementById('aiDot').classList.add('live');
+            document.getElementById('aiStatus').textContent = 'Analyzing...';
+
+            const emotionData = Object.keys(expressions)
+                .map(e => `${e}: ${Math.round(expressions[e] * 100)}%`)
+                .join(', ');
+
+            const prompt = `Analyze this facial expression data and provide a brief, insightful mood assessment in 2-3 sentences. Be conversational and helpful.
+
+Expression data: ${emotionData}
+Blink rate: ${document.getElementById('blinkRate').textContent}/min
+Gaze stability: ${document.getElementById('gazeStability').textContent}
+
+Provide practical insights about their current emotional state.`;
+
+            try {
+                const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        prompt: prompt,
+                        stream: false,
+                        options: { temperature: 0.7, num_predict: 150 }
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('aiSummary').textContent = data.response;
+
+            } catch (e) {
+                document.getElementById('aiSummary').textContent = 'Unable to connect to AI service. Make sure Ollama is running.';
+            }
+
+            document.getElementById('aiDot').classList.remove('live');
+            document.getElementById('aiDot').classList.add('ready');
+            document.getElementById('aiStatus').textContent = 'Connected';
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
